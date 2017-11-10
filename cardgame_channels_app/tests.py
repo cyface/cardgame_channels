@@ -88,7 +88,6 @@ class GameConsumerTests(ChannelTestCase):
         except AssertionError:  # WS Client automatically checks that connection is accepted
             self.fail("Connection Rejected!")
 
-
         # Create a game
         client.send_and_consume('websocket.receive', path='/game/create/', text={'stream': 'create_game', 'payload': {}})  # Text arg is JSON as if it came from browser
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
