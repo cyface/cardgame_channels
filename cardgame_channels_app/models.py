@@ -77,6 +77,16 @@ class CardGamePlayer(models.Model):
         cgp.save()
         return cgp
 
+    @staticmethod
+    def pick_card(cardgameplayer_pk):
+        """Marks a CardGamePlayer as picked by the Judge"""
+        cgp = CardGamePlayer.objects.get(pk=cardgameplayer_pk)
+        cgp.status = 'picked'
+        cgp.player.score += 1
+        cgp.save()
+        Game.replenish_hands(cgp.game.code)
+        return cgp
+
     class Meta(object):
         ordering = ['date_created']
         unique_together = (('card', 'game'),)

@@ -66,6 +66,7 @@ target/
 #VirtualEnv
 .env
 .virtualenv
+.virtualenv3
 
 #StaticFiles Consolidated Location
 static_root/*
