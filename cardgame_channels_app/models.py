@@ -1,13 +1,15 @@
 """Django Models"""
 
 from django.db import models, IntegrityError
-from django.db.models.signals import post_delete, post_save
-from django.dispatch import receiver
 from django.utils.crypto import get_random_string
 
 
 class Card(models.Model):
     """Card for cardgame"""
+
+    # Card Colors
+    GREEN = 'green'
+    RED = 'red'
 
     name = models.CharField(max_length=255)
     type = models.CharField(max_length=255, blank=True, null=True)
@@ -28,13 +30,13 @@ class Card(models.Model):
 class CardGamePlayer(models.Model):
     """Card-Game-Player assignment for cardgame"""
 
-    # ### Status Values ###
-    # hand = In the player's hand
-    # submitted = Submitted as choice to the chooser
-    # picked = Chosen as the winner by the chooser
-    # matching = Actively being matched by the players
-    # won = won as the prize by being picked by the chooser
-    # lost = not picked by the chooser
+    # CardGamePlayer Status Values
+    HAND = 'hand'  # In the player's hand
+    SUBMITTED = 'submitted'  # Submitted as choice to the chooser
+    PICKED = 'picked'  # Chosen as the winner by the chooser
+    MATCHING = 'matching'  # Actively being matched by the players
+    WON = 'won'  # won as the prize by being picked by the chooser
+    LOST = 'lost'  # not picked by the chooser
 
     status = models.CharField(max_length=30, default='hand', db_index=True)
     card = models.ForeignKey('Card')
@@ -45,12 +47,12 @@ class CardGamePlayer(models.Model):
     date_updated = models.DateTimeField(auto_now=True)
 
     @staticmethod
-    def draw_card(game, player=None, color='green', count=1):
+    def draw_card(game, player=None, color=Card.GREEN, count=1):
         """Draws a random card that has not been used already"""
-        if color == 'green':
-            status = 'matching'
+        if color == Card.GREEN:
+            status = CardGamePlayer.MATCHING
         else:
-            status = 'hand'
+            status = CardGamePlayer.HAND
         draw_again = True
         while draw_again:
             draw_again = False
@@ -143,6 +145,9 @@ class Player(models.Model):
         game = Game.objects.get(code=game_code)
         player = Player.objects.create(name=player_name, game=game)
         CardGamePlayer.draw_card(game, player, 'red', 5)
+        if not CardGamePlayer.objects.filter(game=game, status='matching'):
+            # draw green card for new player if no one is currently the judge
+            CardGamePlayer.draw_card(game, player)
         return player
 
     class Meta(object):

@@ -1,5 +1,6 @@
-from channels.test import ChannelTestCase, WSClient
 import logging
+
+from channels.test import ChannelTestCase, WSClient
 
 from cardgame_channels_app.models import Game, Player
 
@@ -82,7 +83,7 @@ class GameConsumerTests(ChannelTestCase):
         client = WSClient()
 
         try:
-            client.send_and_consume('websocket.connect', path='/game/abcd/')  # Connect is forwarded to ALL multiplexed consumers under this demultiplexer
+            client.send_and_consume('websocket.connect', path='/game/create/')  # Connect is forwarded to ALL multiplexed consumers under this demultiplexer
             while client.receive():
                 pass  # Grab connection success message from each consumer
         except AssertionError:  # WS Client automatically checks that connection is accepted
@@ -97,10 +98,20 @@ class GameConsumerTests(ChannelTestCase):
         # Join the game
         client.send_and_consume('websocket.receive', path='/game/{}/'.format(game_code), text={'stream': 'join_game', 'payload': {'player_name': 'tim'}})  # Text arg is JSON as if it came from browser
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
-        player_pk = receive_reply.get('payload').get('data').get('player_pk')
-        player_name = receive_reply.get('payload').get('data').get('player_name')
-        client.session['player_pk'] = player_pk
-        client.session['player_name'] = player_name
+        LOGGER.debug(receive_reply)
+        data = receive_reply.get('payload').get('data')
+        self.assertEqual(1, len(data.get('players')))
+        self.assertEqual(5, len(data.get('player_cards')))
+        self.assertEqual('you', data.get('judge_name'))
+        self.assertIsNotNone(data.get('green_card').get('card__name'))
+
+        # Player Join Event
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        LOGGER.debug(receive_reply)
+        data = receive_reply.get('payload').get('data')
+        self.assertEqual('tim', data.get('player').get('name'))
+        client.session['player_pk'] = data.get('player_pk')
+        client.session['player_name'] = data.get('player_name')
 
         # Submit Card
         # @TODO: Submit Card - but can't until the cgp ids are coming back
