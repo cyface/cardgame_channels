@@ -41,12 +41,13 @@ class JoinGameConsumer(JsonWebsocketConsumer):
         green_card = CardGamePlayer.objects.get(game=player.game, status=CardGamePlayer.MATCHING)
         judge_name = 'you' if green_card.player.name == player.name else green_card.player.name
         green_card_values = rename_card_fields(CardGamePlayer.objects.values('pk', 'card__name', 'card__text').get(game=player.game, status=CardGamePlayer.MATCHING))
-        submitted_cards = list(CardGamePlayer.objects.filter(game=player.game, status='submitted').values('pk', 'card__name', 'card__text'))
+        submitted_cards = list(CardGamePlayer.objects.filter(game=player.game, status=CardGamePlayer.SUBMITTED).values('pk', 'card__name', 'card__text'))
         submitted_cards_renamed = []
         for card in submitted_cards:
             submitted_cards_renamed.append(rename_card_fields(card))
-        multiplexer.send({'action': 'join_game', 'data': {'game_code': game_code, 'player_pk': player.pk, 'player_name': player.name, 'players': players, 'player_cards': player_cards_renamed, 'green_card': green_card_values, 'submitted_cards': submitted_cards_renamed, 'judge_name': judge_name}})
-        multiplexer.group_send(game_code, 'player_joined_game', {'data': {'game_code': game_code, 'player_pk': player.pk, 'player_name': player.name, 'player_status': player.status}})  # notify everyone in the game a player has joined
+        all_players_submitted = True if 0 < len(submitted_cards) == (len(players) - 1) else False
+        multiplexer.send({'action': 'join_game', 'data': {'game_code': game_code, 'player_pk': player.pk, 'player_name': player.name, 'players': players, 'player_cards': player_cards_renamed, 'green_card': green_card_values, 'submitted_cards': submitted_cards_renamed, 'all_players_submitted': all_players_submitted, 'judge_name': judge_name}})
+        multiplexer.group_send(game_code, 'player_joined_game', {'data': {'game_code': game_code, 'player_pk': player.pk, 'player_name': player.name, 'player_score': player.score, 'player_status': player.status}})  # notify everyone in the game a player has joined
 
 
 class PickCardConsumer(JsonWebsocketConsumer):
