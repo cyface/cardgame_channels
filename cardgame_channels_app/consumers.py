@@ -23,16 +23,17 @@ class JoinGameConsumer(JsonWebsocketConsumer):
 
     def receive(self, content, **kwargs):
         multiplexer = kwargs.get('multiplexer')
-        Group(self.kwargs.get('game_code'), channel_layer=multiplexer.reply_channel.channel_layer).add(multiplexer.reply_channel)  # Add joiner to group for this came code, since auto-add only happens on connect
-        player = Player.add_player_to_game(self.kwargs.get('game_code'), content.get('player_name'))
+        game_code = content.get('game_code')
+        Group(game_code, channel_layer=multiplexer.reply_channel.channel_layer).add(multiplexer.reply_channel)  # Add joiner to group for this came code, since auto-add only happens on connect
+        player = Player.add_player_to_game(game_code, content.get('player_name'))
         players = list(player.game.players.values('name', 'score'))
         player_cards = list(player.cardgameplayer_set.filter(card__type=Card.RED).values('pk', 'card__name', 'card__text'))
         green_card = CardGamePlayer.objects.get(game=player.game, status=CardGamePlayer.MATCHING)
         judge_name = 'you' if green_card.player.name == player.name else green_card.player.name
         green_card_values = CardGamePlayer.objects.values('pk', 'card__name', 'card__text').get(game=player.game, status=CardGamePlayer.MATCHING)
         submitted_cards = list(CardGamePlayer.objects.filter(game=player.game, status='submitted').values('pk', 'card__name', 'card__text'))
-        multiplexer.send({'action': 'join_game', 'data': {'game': self.kwargs.get('game_code'), 'players': players, 'player_cards': player_cards, 'green_card': green_card_values, 'submitted_cards': submitted_cards, 'judge_name': judge_name}})
-        multiplexer.group_send(self.kwargs.get('game_code'), 'player_joined_game', {'data': {'player_name': player.name, 'player_pk': player.pk}})  # notify everyone in the game a player has joined
+        multiplexer.send({'action': 'join_game', 'data': {'game_code': game_code, 'players': players, 'player_cards': player_cards, 'green_card': green_card_values, 'submitted_cards': submitted_cards, 'judge_name': judge_name}})
+        multiplexer.group_send(game_code, 'player_joined_game', {'data': {'game_code': game_code, 'player_name': player.name, 'player_pk': player.pk}})  # notify everyone in the game a player has joined
 
 
 class PickCardConsumer(JsonWebsocketConsumer):
@@ -42,7 +43,7 @@ class PickCardConsumer(JsonWebsocketConsumer):
         multiplexer = kwargs.get('multiplexer')
         cgp = CardGamePlayer.pick_card(content.get('cardgameplayer_pk'))
         # TODO: Send players out their new cards.  Send out updated score
-        multiplexer.group_send(self.kwargs.get('game_code'), 'pick_card', {'data': {'player_pk': cgp.player.pk, 'player_name': cgp.player.name, 'cardgameplayer_pk': cgp.pk, 'card_name': cgp.card.name, 'card_text': cgp.card.text}})  # notify everyone card was submitted
+        multiplexer.group_send(content.get('game_code'), 'pick_card', {'data': {'player_pk': cgp.player.pk, 'player_name': cgp.player.name, 'cardgameplayer_pk': cgp.pk, 'card_name': cgp.card.name, 'card_text': cgp.card.text}})  # notify everyone card was submitted
 
 
 class SubmitCardConsumer(JsonWebsocketConsumer):
@@ -51,7 +52,7 @@ class SubmitCardConsumer(JsonWebsocketConsumer):
     def receive(self, content, **kwargs):
         multiplexer = kwargs.get('multiplexer')
         cgp = CardGamePlayer.submit_card(content.get('cardgameplayer_pk'))
-        multiplexer.group_send(self.kwargs.get('game_code'), 'submit_card', {'data': {'player_pk': cgp.player.pk, 'player_name': cgp.player.name, 'cardgameplayer_pk': cgp.pk, 'card_name': cgp.card.name, 'card_text': cgp.card.text}})  # notify everyone card was submitted
+        multiplexer.group_send(content.get('game_code'), 'submit_card', {'data': {'player_pk': cgp.player.pk, 'player_name': cgp.player.name, 'cardgameplayer_pk': cgp.pk, 'card_name': cgp.card.name, 'card_text': cgp.card.text}})  # notify everyone card was submitted
 
 
 class GameDemultiplexer(WebsocketDemultiplexer):
