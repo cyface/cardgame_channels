@@ -73,7 +73,8 @@ class CardGamePlayer(models.Model):
     def submit_card(cardgameplayer_pk):
         """Submits a CardGamePlayer to the Judge"""
         cgp = CardGamePlayer.objects.get(pk=cardgameplayer_pk)
-        cgp.status = 'submitted'
+        cgp.status = CardGamePlayer.SUBMITTED
+        cgp.player.status = Player.SUBMITTED
         cgp.save()
         return cgp
 
@@ -81,7 +82,7 @@ class CardGamePlayer(models.Model):
     def pick_card(cardgameplayer_pk):
         """Marks a CardGamePlayer as picked by the Judge"""
         cgp = CardGamePlayer.objects.get(pk=cardgameplayer_pk)
-        cgp.status = 'picked'
+        cgp.status = CardGamePlayer.PICKED
         cgp.player.score += 1
         cgp.save()
         Game.replenish_hands(cgp.game.code)
@@ -143,9 +144,15 @@ class Game(models.Model):
 class Player(models.Model):
     """Player for cardgame."""
 
+    # Player Status Values
+    WAITING = 'waiting'  # Waiting for Player to Submit
+    SUBMITTED = 'submitted'  # Player Has Submitted a Card
+    JUDGE = 'judge'  # Player is the Judge for This Round
+
     name = models.CharField(max_length=20)
     game = models.ForeignKey('cardgame_channels_app.Game', blank=True, null=True, related_name='players')
     cards = models.ManyToManyField('Card', through=CardGamePlayer)
+    status = models.CharField(max_length=20, default='waiting')  # waiting, submitted, judge
     score = models.IntegerField(default=0)
     date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
@@ -156,8 +163,10 @@ class Player(models.Model):
         player = Player.objects.create(name=player_name, game=game)
         CardGamePlayer.draw_card(game, player, 'red', 5)
         if not CardGamePlayer.objects.filter(game=game, status='matching'):
-            # draw green card for new player if no one is currently the judge
+            # draw green card for new player if no one is currently the judge (and make them the judge)
             CardGamePlayer.draw_card(game, player)
+            player.status = Player.JUDGE
+            player.save()
         return player
 
     class Meta(object):

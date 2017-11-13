@@ -48,9 +48,10 @@ class GameConsumerTests(ChannelTestCase):
         self.assertIsNotNone(receive_reply)
         data = receive_reply.get('payload').get('data')
         self.assertEqual(1, len(data.get('players')))
+        self.assertEqual('judge', data.get('players')[0].get('status'))
         self.assertEqual(5, len(data.get('player_cards')))
         self.assertEqual('you', data.get('judge_name'))
-        self.assertIsNotNone(data.get('green_card').get('card__name'))
+        self.assertIsNotNone(data.get('green_card').get('name'))
 
         tim = Player.objects.get(name='tim')
         self.assertIsNotNone(Player.objects.get(name='tim', game__code='abcd'))
@@ -82,9 +83,10 @@ class GameConsumerTests(ChannelTestCase):
         self.assertIsNotNone(receive_reply)
         data = receive_reply.get('payload').get('data')
         self.assertEqual(1, len(data.get('players')))
+        self.assertEqual('judge', data.get('players')[0].get('status'))
         self.assertEqual(5, len(data.get('player_cards')))
         self.assertEqual('you', data.get('judge_name'))
-        self.assertIsNotNone(data.get('green_card').get('card__name'))
+        self.assertIsNotNone(data.get('green_card').get('name'))
 
         # Player Join Event
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
@@ -110,9 +112,13 @@ class GameConsumerTests(ChannelTestCase):
         data = receive_reply.get('payload').get('data')
         submitted_card = data.get('player_cards')[0].get('pk')
         self.assertEqual(2, len(data.get('players')))
+        self.assertEqual('bob', data.get('players')[0].get('name'))
+        self.assertEqual('tim', data.get('players')[1].get('name'))
+        self.assertEqual('waiting', data.get('players')[0].get('status'))
+        self.assertEqual('judge', data.get('players')[1].get('status'))
         self.assertEqual(5, len(data.get('player_cards')))
         self.assertEqual('tim', data.get('judge_name'))
-        self.assertIsNotNone(data.get('green_card').get('card__name'))
+        self.assertIsNotNone(data.get('green_card').get('name'))
 
         # Player2 Join Event
         receive_reply = client2.receive()  # receive() grabs the content of the next message off of the client's reply_channel
