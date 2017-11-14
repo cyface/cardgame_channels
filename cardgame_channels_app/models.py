@@ -74,8 +74,9 @@ class CardGamePlayer(models.Model):
         """Submits a CardGamePlayer to the Judge"""
         cgp = CardGamePlayer.objects.get(pk=cardgameplayer_pk)
         cgp.status = CardGamePlayer.SUBMITTED
-        cgp.player.status = Player.SUBMITTED
         cgp.save()
+        cgp.player.status = Player.SUBMITTED
+        cgp.player.save()
         return cgp
 
     @staticmethod
@@ -133,6 +134,10 @@ class Game(models.Model):
             if hand_card_count < 5:
                 CardGamePlayer.draw_card(game, player, color='red', count=(5 - hand_card_count))
 
+    @staticmethod
+    def get_submitted_cards_values_list(game_code):
+        return list(Card.objects.filter(cardgameplayer__game__code=game_code, cardgameplayer__status=CardGamePlayer.SUBMITTED).values('pk', 'name', 'text', 'cardgameplayer__pk'))
+
     class Meta(object):
         ordering = ['code']
         verbose_name_plural = "games"
@@ -168,6 +173,10 @@ class Player(models.Model):
             player.status = Player.JUDGE
             player.save()
         return player
+
+    @staticmethod
+    def get_cards_in_hand_values_list(player_pk):
+        return list(Card.objects.filter(cardgameplayer__player__pk=player_pk, cardgameplayer__status=CardGamePlayer.HAND).values('pk', 'name', 'text', 'cardgameplayer__pk'))
 
     class Meta(object):
         ordering = ['name']

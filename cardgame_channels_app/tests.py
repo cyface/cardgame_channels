@@ -2,7 +2,7 @@ import logging
 
 from channels.test import ChannelTestCase, WSClient
 
-from cardgame_channels_app.models import Player, Game
+from cardgame_channels_app.models import Player, Game, CardGamePlayer, Card
 
 LOGGER = logging.getLogger("cardgame_channels_app")
 
@@ -60,6 +60,18 @@ class GameConsumerTests(ChannelTestCase):
         disconnect_consumer = client.send_and_consume('websocket.disconnect', path='/game/')
         disconnect_consumer.close()
 
+    def test_cards(self):
+        player = Player.add_player_to_game(self.game1.code, 'tim')
+        self.assertEqual(6, len(player.cardgameplayer_set.all()))
+        cards_in_hand = CardGamePlayer.objects.filter(player=player, game=player.game, status=CardGamePlayer.HAND)
+        self.assertEqual(5, len(cards_in_hand))
+        for card in cards_in_hand:
+            LOGGER.debug(card)
+        cards_in_hand = Card.objects.filter(cardgameplayer__player=player, cardgameplayer__game=player.game, cardgameplayer__status=CardGamePlayer.HAND).values('pk', 'name', 'text')
+        for card in cards_in_hand:
+            LOGGER.debug(card)
+        self.assertEqual(5, len(cards_in_hand))
+
     def test_whole_game(self):
         client = WSClient()
 
@@ -110,7 +122,7 @@ class GameConsumerTests(ChannelTestCase):
         LOGGER.debug(receive_reply)
         self.assertIsNotNone(receive_reply)
         data = receive_reply.get('payload').get('data')
-        submitted_card = data.get('player_cards')[0].get('pk')
+        submitted_card = data.get('player_cards')[0].get('cardgameplayer__pk')
         self.assertEqual(2, len(data.get('players')))
         self.assertEqual('bob', data.get('players')[0].get('name'))
         self.assertEqual('tim', data.get('players')[1].get('name'))
@@ -140,7 +152,7 @@ class GameConsumerTests(ChannelTestCase):
         LOGGER.debug(receive_reply)
         self.assertIsNotNone(receive_reply)
         data = receive_reply.get('payload').get('data')
-        self.assertEqual('bob', data.get('player_name'))
+        self.assertEqual(4, len(data.get('cards')))
 
         # Player 2: Submit Card - As seen by Player 1
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
@@ -156,6 +168,15 @@ class GameConsumerTests(ChannelTestCase):
         self.assertIsNotNone(receive_reply)
         data = receive_reply.get('payload').get('data')
         self.assertEqual('bob', data.get('player_name'))
+
+        # Player 1: Get New Cards Message
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        LOGGER.debug(receive_reply)
+        self.assertIsNotNone(receive_reply)
+        stream = receive_reply.get('stream')
+        self.assertEqual('new_cards', stream)
+        data = receive_reply.get('payload').get('data')
+        self.assertEqual(5, len(data.get('cards')))
 
         disconnect_consumer = client.send_and_consume('websocket.disconnect', path='/game/')
         disconnect_consumer.close()
