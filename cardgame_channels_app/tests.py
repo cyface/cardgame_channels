@@ -8,6 +8,25 @@ from .models import Player, Game, CardGamePlayer, Card
 LOGGER = logging.getLogger("cardgame_channels_app")
 
 
+class GameModelTests(ChannelTestCase):
+    fixtures = ['test_card_data.json']  # 100 green and 100 red cards
+
+    def setUp(self):
+        self.game1 = Game.objects.create(pk=1, code='abcd')
+
+    def test_cards(self):
+        player = add_player_to_game(self.game1.code, 'tim')
+        self.assertEqual(6, len(player.cardgameplayer_set.all()))
+        cards_in_hand = CardGamePlayer.objects.filter(player=player, game=player.game, status=CardGamePlayer.HAND)
+        self.assertEqual(5, len(cards_in_hand))
+        # for card in cards_in_hand:
+        #     LOGGER.debug(card)
+        cards_in_hand = Card.objects.filter(cardgameplayer__player=player, cardgameplayer__game=player.game, cardgameplayer__status=CardGamePlayer.HAND).values('pk', 'name', 'text')
+        # for card in cards_in_hand:
+        #     LOGGER.debug(card)
+        self.assertEqual(5, len(cards_in_hand))
+
+
 class GameConsumerTests(ChannelTestCase):
     fixtures = ['test_card_data.json']  # 100 green and 100 red cards
 
@@ -104,15 +123,15 @@ class GameConsumerTests(ChannelTestCase):
 
         client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': 'abcd', 'player_name': 'tim'}})  # Text arg is JSON as if it came from browser
 
-        # Joined Event
+        # Joined Event to Player
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         LOGGER.debug(receive_reply)
-        self.assertIsNotNone(receive_reply)
-        data = receive_reply.get('payload').get('data')
+        self.assertEqual('join_game', receive_reply.get('stream'))
 
-        # Player Joined Game Event
+        # Player Joined Group Event
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         LOGGER.debug(receive_reply)
+        self.assertEqual('player_joined_game', receive_reply.get('stream'))
         data = receive_reply.get('payload').get('data')
         self.assertEqual(1, len(data.get('players')))
         self.assertEqual('judge', data.get('players')[0].get('status'))
@@ -124,18 +143,6 @@ class GameConsumerTests(ChannelTestCase):
 
         disconnect_consumer = client.send_and_consume('websocket.disconnect', path='/game/')
         disconnect_consumer.close()
-
-    def test_cards(self):
-        player = add_player_to_game(self.game1.code, 'tim')
-        self.assertEqual(6, len(player.cardgameplayer_set.all()))
-        cards_in_hand = CardGamePlayer.objects.filter(player=player, game=player.game, status=CardGamePlayer.HAND)
-        self.assertEqual(5, len(cards_in_hand))
-        for card in cards_in_hand:
-            LOGGER.debug(card)
-        cards_in_hand = Card.objects.filter(cardgameplayer__player=player, cardgameplayer__game=player.game, cardgameplayer__status=CardGamePlayer.HAND).values('pk', 'name', 'text')
-        for card in cards_in_hand:
-            LOGGER.debug(card)
-        self.assertEqual(5, len(cards_in_hand))
 
     def test_whole_game(self):
         client = WSClient()
@@ -150,6 +157,7 @@ class GameConsumerTests(ChannelTestCase):
         # Create a game
         client.send_and_consume('websocket.receive', path='/game/create/', text={'stream': 'create_game', 'payload': {}})  # Text arg is JSON as if it came from browser
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        self.assertEqual('create_game', receive_reply.get('stream'))
         game_code = receive_reply.get('payload').get('data').get('game_code')
         client.session['game_code'] = game_code
 
@@ -157,7 +165,7 @@ class GameConsumerTests(ChannelTestCase):
         client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': game_code, 'player_name': 'tim'}})  # Text arg is JSON as if it came from browser
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         LOGGER.debug(receive_reply)
-        self.assertIsNotNone(receive_reply)
+        self.assertEqual('join_game', receive_reply.get('stream'))
         data = receive_reply.get('payload').get('data')
         self.assertEqual(5, len(data.get('player_cards')))
         self.assertEqual('tim', data.get('judge').get('name'))
@@ -166,6 +174,7 @@ class GameConsumerTests(ChannelTestCase):
         # Player Join Event
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         LOGGER.debug(receive_reply)
+        self.assertEqual('player_joined_game', receive_reply.get('stream'))
         data = receive_reply.get('payload').get('data')
         self.assertEqual(1, len(data.get('players')))
         self.assertEqual('judge', data.get('players')[0].get('status'))
@@ -185,7 +194,7 @@ class GameConsumerTests(ChannelTestCase):
         client2.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': game_code, 'player_name': 'bob'}})  # Text arg is JSON as if it came from browser
         receive_reply = client2.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         LOGGER.debug(receive_reply)
-        self.assertIsNotNone(receive_reply)
+        self.assertEqual('join_game', receive_reply.get('stream'))
         data = receive_reply.get('payload').get('data')
         submitted_card_pk = data.get('player_cards')[0].get('pk')
         self.assertEqual(5, len(data.get('player_cards')))
@@ -195,6 +204,7 @@ class GameConsumerTests(ChannelTestCase):
         # Player2 Join Event
         receive_reply = client2.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         LOGGER.debug(receive_reply)
+        self.assertEqual('player_joined_game', receive_reply.get('stream'))
         data = receive_reply.get('payload').get('data')
         self.assertEqual('bob', data.get('player').get('name'))
         self.assertEqual(2, len(data.get('players')))
@@ -207,6 +217,7 @@ class GameConsumerTests(ChannelTestCase):
 
         # Player2 Join Event - Seen by Player 1
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        self.assertEqual('player_joined_game', receive_reply.get('stream'))
         LOGGER.debug(receive_reply)
         data = receive_reply.get('payload').get('data')
         self.assertEqual('bob', data.get('player').get('name'))
@@ -215,33 +226,62 @@ class GameConsumerTests(ChannelTestCase):
         client2.send_and_consume('websocket.receive', path='/game/', text={'stream': 'submit_card', 'payload': {'game_code': game_code, 'card_pk': submitted_card_pk}})  # Text arg is JSON as if it came from browser
         receive_reply = client2.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         LOGGER.debug(receive_reply)
-        self.assertIsNotNone(receive_reply)
+        self.assertEqual('submit_card', receive_reply.get('stream'))
         data = receive_reply.get('payload').get('data')
         self.assertEqual(4, len(data.get('cards')))
 
-        # Player 2: Submit Card - As seen by Player 1
-        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        # Player 2: Submit Card - Group Notification
+        receive_reply = client2.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         LOGGER.debug(receive_reply)
-        self.assertIsNotNone(receive_reply)
+        self.assertEqual('card_was_submitted', receive_reply.get('stream'))
         data = receive_reply.get('payload').get('data')
         self.assertEqual('bob', data.get('submitting_player').get('name'))
 
-        # Player 1: Pick Submitted Card
+        # Player 1: Submit Card - Group Notification
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        LOGGER.debug(receive_reply)
+        self.assertEqual('card_was_submitted', receive_reply.get('stream'))
+        data = receive_reply.get('payload').get('data')
+        self.assertEqual('bob', data.get('submitting_player').get('name'))
+
+        # Player 1 Pick Card - Group notification
         client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'pick_card', 'payload': {'game_code': game_code, 'card_pk': submitted_card_pk}})  # Text arg is JSON as if it came from browser
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         LOGGER.debug(receive_reply)
-        self.assertIsNotNone(receive_reply)
+        self.assertEqual('pick_card', receive_reply.get('stream'))
         data = receive_reply.get('payload').get('data')
         self.assertEqual('bob', data.get('picked_player').get('name'))
+        self.assertEqual(1, data.get('players')[0].get('score'))  # Point to bob
+        self.assertEqual(0, data.get('players')[1].get('score'))  # Tim's score should not have changed
+
+        # Player 2: Pick Card - Group notification
+        receive_reply = client2.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        LOGGER.debug(receive_reply)
+        self.assertEqual('pick_card', receive_reply.get('stream'))
+        data = receive_reply.get('payload').get('data')
+        self.assertEqual('bob', data.get('picked_player').get('name'))
+        self.assertEqual(1, data.get('players')[0].get('score'))  # Point to bob
+        self.assertEqual(0, data.get('players')[1].get('score'))  # Tim's score should not have changed
 
         # Player 1: Get New Cards Message
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         LOGGER.debug(receive_reply)
         self.assertIsNotNone(receive_reply)
-        stream = receive_reply.get('stream')
-        self.assertEqual('new_cards', stream)
+        self.assertEqual('new_cards', receive_reply.get('stream'))
         data = receive_reply.get('payload').get('data')
         self.assertEqual(5, len(data.get('cards')))
+        self.assertEqual('bob', data.get('judge').get('name'))  # Bob's card was picked so he should now be the judge
+        self.assertIsNotNone(data.get('green_card').get('name'))
+
+        # Player 2: Get New Cards Message
+        receive_reply = client2.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        LOGGER.debug(receive_reply)
+        self.assertIsNotNone(receive_reply)
+        self.assertEqual('new_cards', receive_reply.get('stream'))
+        data = receive_reply.get('payload').get('data')
+        self.assertEqual(5, len(data.get('cards')))
+        self.assertEqual('bob', data.get('judge').get('name'))  # Bob's card was picked so he should now be the judge
+        self.assertIsNotNone(data.get('green_card').get('name'))
 
         disconnect_consumer = client.send_and_consume('websocket.disconnect', path='/game/')
         disconnect_consumer.close()
