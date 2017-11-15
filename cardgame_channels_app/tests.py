@@ -33,6 +33,41 @@ class GameConsumerTests(ChannelTestCase):
         disconnect_consumer = client.send_and_consume('websocket.disconnect', path='/game/')
         disconnect_consumer.close()
 
+    def test_join_game_errors(self):
+        client = WSClient()
+
+        try:
+            client.send_and_consume('websocket.connect', path='/game/')  # Connect is forwarded to ALL multiplexed consumers under this demultiplexer
+            while client.receive():
+                pass  # Grab connection success message from each consumer
+        except AssertionError:  # WS Client automatically checks that connection is accepted
+            self.fail("Connection Rejected!")
+
+        # Test Player Name Too Long
+        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': 'abcd', 'player_name': '1234567891011121314151617181920'}})  # Text arg is JSON as if it came from browser
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        LOGGER.debug(receive_reply)
+        data = receive_reply.get('payload').get('data')
+        self.assertIsNotNone(data.get('error'))
+
+        # Test Game Code Doesn't Exist
+        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': '1234', 'player_name': '123456789'}})  # Text arg is JSON as if it came from browser
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        LOGGER.debug(receive_reply)
+        data = receive_reply.get('payload').get('data')
+        self.assertIsNotNone(data.get('error'))
+
+        # Test Player Name Taken
+        add_player_to_game('abcd', 'my_player')
+        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': 'abcd', 'player_name': 'my_player'}})  # Text arg is JSON as if it came from browser
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        LOGGER.debug(receive_reply)
+        data = receive_reply.get('payload').get('data')
+        self.assertIsNotNone(data.get('error'))
+
+        disconnect_consumer = client.send_and_consume('websocket.disconnect', path='/game/')
+        disconnect_consumer.close()
+
     def test_join_game(self):
         client = WSClient()
 

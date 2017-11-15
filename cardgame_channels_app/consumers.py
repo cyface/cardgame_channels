@@ -3,6 +3,7 @@ import logging
 from channels import Group
 from channels.generic.websockets import WebsocketDemultiplexer, JsonWebsocketConsumer
 
+from cardgame_channels_app.forms import JoinGameForm
 from cardgame_channels_app.game_logic import *
 
 LOGGER = logging.getLogger("cardgame_channels_app")
@@ -23,14 +24,20 @@ class JoinGameConsumer(JsonWebsocketConsumer):
 
     def receive(self, content, **kwargs):
         multiplexer = kwargs.get('multiplexer')
-        game_code = content.get('game_code')
-        player = add_player_to_game(game_code, content.get('player_name'))
+        join_form = JoinGameForm({'game_code': content.get('game_code'), 'player_name': content.get('player_name')})
+        if join_form.is_valid():
+            game_code = join_form.cleaned_data.get('game_code')
+            player = add_player_to_game(game_code, join_form.cleaned_data.get('player_name'))
 
-        Group(game_code, channel_layer=multiplexer.reply_channel.channel_layer).add(multiplexer.reply_channel)  # Add joiner to group for this came code, since auto-add only happens on connect
-        Group('player_{}'.format(player.pk), channel_layer=multiplexer.reply_channel.channel_layer).add(multiplexer.reply_channel)  # Add joiner to group for this player name, since auto-add only happens on connect
+            Group(game_code, channel_layer=multiplexer.reply_channel.channel_layer).add(multiplexer.reply_channel)  # Add joiner to group for this came code, since auto-add only happens on connect
+            Group('player_{}'.format(player.pk), channel_layer=multiplexer.reply_channel.channel_layer).add(multiplexer.reply_channel)  # Add joiner to group for this player name, since auto-add only happens on connect
 
-        multiplexer.send({'action': 'join_game', 'data': {'game_code': game_code, 'player': get_player_values(player.pk), 'player_cards': get_cards_in_hand_values_list(player.pk), 'green_card': get_matching_card_values(game_code), 'submitted_cards': get_submitted_cards_values_list(game_code), 'all_players_submitted': get_all_players_submitted(game_code), 'judge': get_judge_player_values(game_code)}})
-        multiplexer.group_send(game_code, 'player_joined_game', {'data': {'game_code': game_code, 'player': get_player_values(player.pk), 'players': get_game_player_values_list(player.game.code)}})  # notify everyone in the game a player has joined
+            multiplexer.send(
+                {'action': 'join_game', 'data': {'game_code': game_code, 'player': get_player_values(player.pk), 'player_cards': get_cards_in_hand_values_list(player.pk), 'green_card': get_matching_card_values(game_code), 'submitted_cards': get_submitted_cards_values_list(game_code), 'all_players_submitted': get_all_players_submitted(game_code), 'judge': get_judge_player_values(game_code)}})
+            multiplexer.group_send(game_code, 'player_joined_game', {'data': {'game_code': game_code, 'player': get_player_values(player.pk), 'players': get_game_player_values_list(player.game.code)}})  # notify everyone in the game a player has joined
+        else:
+            multiplexer.send(
+                {'action': 'join_game', 'data': {'error': 'join failed', 'errors': join_form.errors}})
 
 
 class PickCardConsumer(JsonWebsocketConsumer):
@@ -61,7 +68,8 @@ class SubmitCardConsumer(JsonWebsocketConsumer):
         cgp = submit_card(content.get('game_code'), content.get('card_pk'))
         multiplexer.group_send('player_{}'.format(cgp.player.pk), 'submit_card', {'data': {'game_code': content.get('game_code'), 'cards': get_cards_in_hand_values_list(cgp.player.pk)}})
         players = list(cgp.game.players.values('pk', 'name', 'status', 'score'))
-        multiplexer.group_send(content.get('game_code'), 'card_was_submitted', {'data': {'game_code': content.get('game_code'), 'submitting_player': get_player_values(cgp.player.pk), 'players': players, 'card': get_card_values(content.get('game_code'), cgp.card), 'submitted_cards': get_submitted_cards_values_list(cgp.game.code), 'all_players_submitted': get_all_players_submitted(cgp.game.code)}})  # notify everyone card was submitted
+        multiplexer.group_send(content.get('game_code'), 'card_was_submitted',
+                               {'data': {'game_code': content.get('game_code'), 'submitting_player': get_player_values(cgp.player.pk), 'players': players, 'card': get_card_values(content.get('game_code'), cgp.card), 'submitted_cards': get_submitted_cards_values_list(cgp.game.code), 'all_players_submitted': get_all_players_submitted(cgp.game.code)}})  # notify everyone card was submitted
 
 
 class GameDemultiplexer(WebsocketDemultiplexer):
