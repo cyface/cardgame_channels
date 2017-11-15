@@ -66,7 +66,7 @@ class GameConsumerTests(ChannelTestCase):
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         LOGGER.debug(receive_reply)
         self.assertIn('required', receive_reply.get('payload').get('data').get('errors').get('game_code')[0])
-        self.assertIn('required', receive_reply.get('payload').get('data').get('errors').get('player_name')[1])
+        self.assertIn('required', receive_reply.get('payload').get('data').get('errors').get('player_name')[0])
 
         # Test Game Code Doesn't Exist
         client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': '1234', 'player_name': '123456789'}})  # Text arg is JSON as if it came from browser
@@ -103,15 +103,20 @@ class GameConsumerTests(ChannelTestCase):
             self.fail("Connection Rejected!")
 
         client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': 'abcd', 'player_name': 'tim'}})  # Text arg is JSON as if it came from browser
+
+        # Joined Event
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         LOGGER.debug(receive_reply)
         self.assertIsNotNone(receive_reply)
         data = receive_reply.get('payload').get('data')
+
+        # Player Joined Game Event
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        LOGGER.debug(receive_reply)
+        data = receive_reply.get('payload').get('data')
         self.assertEqual(1, len(data.get('players')))
         self.assertEqual('judge', data.get('players')[0].get('status'))
-        self.assertEqual(5, len(data.get('player_cards')))
-        self.assertEqual('tim', data.get('judge_name'))
-        self.assertIsNotNone(data.get('green_card').get('name'))
+        self.assertEqual('tim', data.get('player').get('name'))
 
         tim = Player.objects.get(name='tim')
         self.assertIsNotNone(Player.objects.get(name='tim', game__code='abcd'))
