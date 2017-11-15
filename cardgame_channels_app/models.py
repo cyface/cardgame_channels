@@ -1,7 +1,6 @@
 """Django Models"""
 
-from django.db import models, IntegrityError
-from django.utils.crypto import get_random_string
+from django.db import models
 
 
 class Card(models.Model):
@@ -46,49 +45,6 @@ class CardGamePlayer(models.Model):
     date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
 
-    @staticmethod
-    def draw_card(game, player=None, color=Card.GREEN, count=1):
-        """Draws a random card that has not been used already"""
-        if color == Card.GREEN:
-            status = CardGamePlayer.MATCHING
-        else:
-            status = CardGamePlayer.HAND
-        draw_again = True
-        while draw_again:
-            draw_again = False
-            used_cards = CardGamePlayer.objects.filter(game=game).values_list('card__id', flat=True)
-            cards = Card.objects.exclude(id__in=used_cards).filter(type=color).order_by('?')[:count]
-            for card in cards:
-                try:
-                    CardGamePlayer.objects.create(
-                        card=card,
-                        game=game,
-                        player=player,
-                        status=status
-                    )
-                except IntegrityError as e:
-                    draw_again = True  # Try Again
-
-    @staticmethod
-    def submit_card(cardgameplayer_pk):
-        """Submits a CardGamePlayer to the Judge"""
-        cgp = CardGamePlayer.objects.get(pk=cardgameplayer_pk)
-        cgp.status = CardGamePlayer.SUBMITTED
-        cgp.save()
-        cgp.player.status = Player.SUBMITTED
-        cgp.player.save()
-        return cgp
-
-    @staticmethod
-    def pick_card(cardgameplayer_pk):
-        """Marks a CardGamePlayer as picked by the Judge"""
-        cgp = CardGamePlayer.objects.get(pk=cardgameplayer_pk)
-        cgp.status = CardGamePlayer.PICKED
-        cgp.player.score += 1
-        cgp.save()
-        Game.replenish_hands(cgp.game.code)
-        return cgp
-
     class Meta(object):
         ordering = ['date_created']
         unique_together = (('card', 'game'),)
@@ -108,35 +64,6 @@ class Game(models.Model):
 
     date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
-
-    @staticmethod
-    def create_game_code():
-        # Create a Unique Game Code
-        game_code = ""
-        not_a_unique_code = True
-        while not_a_unique_code:
-            game_code = get_random_string(4, allowed_chars='abcdefghijklmnopqrstuvwxyz')
-            try:
-                Game.objects.create(code=game_code)
-                not_a_unique_code = False
-
-            except IntegrityError:
-                not_a_unique_code = True
-        return game_code
-
-    @staticmethod
-    def replenish_hands(game_code):
-        """Replenishes the hands of all players in the game"""
-        game = Game.objects.get(code=game_code)
-        players = game.players.all()
-        for player in players:
-            hand_card_count = player.cardgameplayer_set.filter(status='hand').count()
-            if hand_card_count < 5:
-                CardGamePlayer.draw_card(game, player, color='red', count=(5 - hand_card_count))
-
-    @staticmethod
-    def get_submitted_cards_values_list(game_code):
-        return list(Card.objects.filter(cardgameplayer__game__code=game_code, cardgameplayer__status=CardGamePlayer.SUBMITTED).values('pk', 'name', 'text', 'cardgameplayer__pk'))
 
     class Meta(object):
         ordering = ['code']
@@ -161,22 +88,6 @@ class Player(models.Model):
     score = models.IntegerField(default=0)
     date_created = models.DateTimeField(auto_now_add=True)
     date_updated = models.DateTimeField(auto_now=True)
-
-    @staticmethod
-    def add_player_to_game(game_code, player_name):
-        game = Game.objects.get(code=game_code)
-        player = Player.objects.create(name=player_name, game=game)
-        CardGamePlayer.draw_card(game, player, 'red', 5)
-        if not CardGamePlayer.objects.filter(game=game, status='matching'):
-            # draw green card for new player if no one is currently the judge (and make them the judge)
-            CardGamePlayer.draw_card(game, player)
-            player.status = Player.JUDGE
-            player.save()
-        return player
-
-    @staticmethod
-    def get_cards_in_hand_values_list(player_pk):
-        return list(Card.objects.filter(cardgameplayer__player__pk=player_pk, cardgameplayer__status=CardGamePlayer.HAND).values('pk', 'name', 'text', 'cardgameplayer__pk'))
 
     class Meta(object):
         ordering = ['name']
