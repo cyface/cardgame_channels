@@ -124,7 +124,9 @@ def pick_card(game_code, card_pk):
     cgp.player.status = Player.JUDGE
     cgp.player.save()
 
+    # Mark non-winning cards as losers
     CardGamePlayer.objects.filter(game=cgp.game, status=CardGamePlayer.SUBMITTED).update(status=CardGamePlayer.LOST)
+
     replenish_hands(cgp.game.code)
     draw_card(game=cgp.game, player=cgp.player)  # New Green Card to Picked Player
     return cgp
