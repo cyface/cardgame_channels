@@ -47,19 +47,43 @@ class GameConsumerTests(ChannelTestCase):
         client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': 'abcd', 'player_name': '1234567891011121314151617181920'}})  # Text arg is JSON as if it came from browser
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         LOGGER.debug(receive_reply)
-        data = receive_reply.get('payload').get('data')
-        self.assertIsNotNone(data.get('error'))
+        self.assertIn('most 10', receive_reply.get('payload').get('data').get('errors').get('player_name')[0])
+
+        # Test Game Code Missing
+        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': '', 'player_name': '123456789'}})  # Text arg is JSON as if it came from browser
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        LOGGER.debug(receive_reply)
+        self.assertIn('required', receive_reply.get('payload').get('data').get('errors').get('game_code')[0])
+
+        # Test Player Name Missing
+        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': 'abcd', 'player_name': ''}})  # Text arg is JSON as if it came from browser
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        LOGGER.debug(receive_reply)
+        self.assertIn('required', receive_reply.get('payload').get('data').get('errors').get('player_name')[0])
+
+        # Test Empty Submit
+        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': '', 'player_name': ''}})  # Text arg is JSON as if it came from browser
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        LOGGER.debug(receive_reply)
+        self.assertIn('required', receive_reply.get('payload').get('data').get('errors').get('game_code')[0])
+        self.assertIn('required', receive_reply.get('payload').get('data').get('errors').get('player_name')[1])
 
         # Test Game Code Doesn't Exist
         client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': '1234', 'player_name': '123456789'}})  # Text arg is JSON as if it came from browser
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         LOGGER.debug(receive_reply)
-        data = receive_reply.get('payload').get('data')
-        self.assertIsNotNone(data.get('error'))
+        self.assertIn('does not exist', receive_reply.get('payload').get('data').get('errors').get('game_code')[0])
 
         # Test Player Name Taken
         add_player_to_game('abcd', 'my_player')
         client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': 'abcd', 'player_name': 'my_player'}})  # Text arg is JSON as if it came from browser
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        LOGGER.debug(receive_reply)
+        self.assertIn('already taken', receive_reply.get('payload').get('data').get('errors').get('player_name')[0])
+        Player.objects.get(name='my_player').delete()
+
+        # Test HTML in Code/Player
+        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': 'a<b>', 'player_name': '&copy;<b>'}})  # Text arg is JSON as if it came from browser
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         LOGGER.debug(receive_reply)
         data = receive_reply.get('payload').get('data')

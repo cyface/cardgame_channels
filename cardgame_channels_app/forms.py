@@ -8,7 +8,7 @@ from django.utils.html import strip_tags, escape
 
 class JoinGameForm(Form):
     """Form to create new games"""
-    game_code = CharField(label="Game Code", max_length="6", required=True)
+    game_code = CharField(label="Game Code", max_length="4", required=True)
     player_name = CharField(label="Player Name", max_length="10", required=True)
     game = None
 
@@ -19,7 +19,7 @@ class JoinGameForm(Form):
         # If the data survived the initial cleaning, then check it against the database
         if cleaned_data.get('player_name') and cleaned_data.get('game_code'):
             # Try and make game_code safe
-            game_code = escape(strip_tags(cleaned_data['game_code'][:4].lower()))
+            game_code = escape(strip_tags(cleaned_data['game_code'].lower()))
 
             # Check if game_code exists
             try:
@@ -29,7 +29,7 @@ class JoinGameForm(Form):
                 self.add_error('game_code', 'Unfortunately, that game code does not exist.')
 
             # Try and make player_name safe
-            player_name = escape(strip_tags(self.cleaned_data['player_name'][:10]))
+            player_name = escape(strip_tags(self.cleaned_data['player_name']))
 
             # Check if player_name is already taken
             try:
