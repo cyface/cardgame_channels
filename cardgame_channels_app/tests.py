@@ -144,6 +144,59 @@ class GameConsumerTests(ChannelTestCase):
         disconnect_consumer = client.send_and_consume('websocket.disconnect', path='/game/')
         disconnect_consumer.close()
 
+    def test_validate_game_code(self):
+        client = WSClient()
+
+        try:
+            while client.receive():
+                pass  # Grab connection success message from each consumer
+        except AssertionError:  # WS Client automatically checks that connection is accepted
+            self.fail("Connection Rejected!")
+
+        # Valid Test
+        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'validate_game_code', 'payload': {'game_code': 'abcd'}})  # Text arg is JSON as if it came from browser
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        self.assertEqual(receive_reply.get('stream'), 'validate_game_code')
+        self.assertEqual('abcd', receive_reply.get('payload').get('data').get('game_code'))
+        self.assertTrue(receive_reply.get('payload').get('data').get('valid'))
+
+        # Invalid Test
+        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'validate_game_code', 'payload': {'game_code': '1234'}})  # Text arg is JSON as if it came from browser
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        self.assertEqual(receive_reply.get('stream'), 'validate_game_code')
+        self.assertEqual('1234', receive_reply.get('payload').get('data').get('game_code'))
+        self.assertFalse(receive_reply.get('payload').get('data').get('valid'))
+
+        disconnect_consumer = client.send_and_consume('websocket.disconnect', path='/game/')
+        disconnect_consumer.close()
+
+    def test_validate_player_name(self):
+        client = WSClient()
+
+        try:
+            while client.receive():
+                pass  # Grab connection success message from each consumer
+        except AssertionError:  # WS Client automatically checks that connection is accepted
+            self.fail("Connection Rejected!")
+
+        # Available Test
+        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'validate_player_name', 'payload': {'game_code': 'abcd', 'player_name': 'tim'}})  # Text arg is JSON as if it came from browser
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        self.assertEqual(receive_reply.get('stream'), 'validate_player_name')
+        self.assertEqual('abcd', receive_reply.get('payload').get('data').get('game_code'))
+        self.assertTrue(receive_reply.get('payload').get('data').get('valid'))
+
+        # Invalid Test
+        add_player_to_game(self.game1.code, 'tim')
+        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'validate_player_name', 'payload': {'game_code': 'abcd', 'player_name': 'tim'}})  # Text arg is JSON as if it came from browser
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        self.assertEqual(receive_reply.get('stream'), 'validate_player_name')
+        self.assertEqual('abcd', receive_reply.get('payload').get('data').get('game_code'))
+        self.assertFalse(receive_reply.get('payload').get('data').get('valid'))
+
+        disconnect_consumer = client.send_and_consume('websocket.disconnect', path='/game/')
+        disconnect_consumer.close()
+
     def test_whole_game(self):
         client = WSClient()
 

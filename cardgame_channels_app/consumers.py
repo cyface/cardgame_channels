@@ -72,6 +72,24 @@ class SubmitCardConsumer(JsonWebsocketConsumer):
                                {'data': {'game_code': content.get('game_code'), 'submitting_player': get_player_values(cgp.player.pk), 'players': players, 'card': get_card_values(content.get('game_code'), cgp.card), 'submitted_cards': get_submitted_cards_values_list(cgp.game.code), 'all_players_submitted': get_all_players_submitted(cgp.game.code)}})  # notify everyone card was submitted
 
 
+class ValidateGameCodeConsumer(JsonWebsocketConsumer):
+    channel_session = True
+
+    def receive(self, content, **kwargs):
+        multiplexer = kwargs.get('multiplexer')
+        game_code_exists = validate_game_code(content.get('game_code'))
+        multiplexer.send({'action': 'validate_game_code', 'data': {'game_code': content.get('game_code'), 'valid': game_code_exists}})
+
+
+class ValidatePlayerNameConsumer(JsonWebsocketConsumer):
+    channel_session = True
+
+    def receive(self, content, **kwargs):
+        multiplexer = kwargs.get('multiplexer')
+        player_name_available = validate_player_name(content.get('game_code'), content.get('player_name'))
+        multiplexer.send({'action': 'validate_player_name', 'data': {'game_code': content.get('game_code'), 'valid': player_name_available}})
+
+
 class GameDemultiplexer(WebsocketDemultiplexer):
     # Looks at the 'stream' value to route the incoming request to the correct consumer
     consumers = {
@@ -79,4 +97,6 @@ class GameDemultiplexer(WebsocketDemultiplexer):
         "join_game": JoinGameConsumer,
         "pick_card": PickCardConsumer,
         "submit_card": SubmitCardConsumer,
+        "validate_game_code": ValidateGameCodeConsumer,
+        "validate_player_name": ValidatePlayerNameConsumer,
     }
