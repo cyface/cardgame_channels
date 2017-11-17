@@ -87,7 +87,8 @@ class ValidatePlayerNameConsumer(JsonWebsocketConsumer):
     def receive(self, content, **kwargs):
         multiplexer = kwargs.get('multiplexer')
         player_name_available = validate_player_name(content.get('game_code'), content.get('player_name'))
-        multiplexer.send({'action': 'validate_player_name', 'data': {'game_code': content.get('game_code'), 'valid': player_name_available}})
+        player_name_available = False if not content.get('game_code') else player_name_available
+        multiplexer.send({'action': 'validate_player_name', 'data': {'game_code': content.get('game_code'), 'player_name': content.get('player_name'), 'valid': player_name_available}})
 
 
 class GameDemultiplexer(WebsocketDemultiplexer):
