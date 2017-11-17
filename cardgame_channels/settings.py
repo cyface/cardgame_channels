@@ -24,7 +24,7 @@ SECRET_KEY = '+^(prp-&lb4smc_&0$4^=#3xtjb$6ocp)evati!*1#!_z_hxkq'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1', '192.168.86.71']
 
 # Application definition
 
@@ -36,7 +36,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'cardgame_channels_app',
-#    'cardgame_channels_app.apps.CardgameChannelsAppConfig',
     'channels',
 ]
 
@@ -55,7 +54,7 @@ ROOT_URLCONF = 'cardgame_channels.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')]
+        'DIRS': [os.path.join(BASE_DIR, 'static', 'templates')]
         ,
         'APP_DIRS': True,
         'OPTIONS': {
