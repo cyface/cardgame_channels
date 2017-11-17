@@ -60,8 +60,8 @@ def draw_card(game, player=None, color=Card.GREEN, count=1):
 def get_all_players_submitted(game_code):
     """Returns true or false that all the players have submitted their cards to the judge"""
     try:
-        Player.objects.get(game__code=game_code, status=Player.WAITING)
-        return False
+        waiting_players = Player.objects.filter(game__code=game_code, status=Player.WAITING)
+        return False if waiting_players else True
     except ObjectDoesNotExist:
         return True
 
@@ -150,21 +150,3 @@ def submit_card(game_code, card_pk):
     cgp.player.status = Player.SUBMITTED
     cgp.player.save()
     return cgp
-
-
-def validate_game_code(game_code):
-    """Validates that a game code exists"""
-    try:
-        Game.objects.get(code=game_code)
-        return True
-    except ObjectDoesNotExist:
-        return False
-
-
-def validate_player_name(game_code, player_name):
-    """Validates that a player name for a given game has not already been taken"""
-    try:
-        Player.objects.get(game__code=game_code, name=player_name)
-        return False
-    except ObjectDoesNotExist:
-        return True
