@@ -10,6 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
+# pylint: disable=R0801, W0611, C0413, W0401
+
 import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -54,8 +56,7 @@ ROOT_URLCONF = 'cardgame_channels.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'static', 'templates')]
-        ,
+        'DIRS': [os.path.join(BASE_DIR, 'static', 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -185,6 +186,6 @@ LOGGING = {
 }
 
 try:
-    from local_settings import *
+    from settings_local import *
 except ImportError:
     pass

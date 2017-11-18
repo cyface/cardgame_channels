@@ -2,7 +2,7 @@
 Django settings for project.
 """
 
-# pylint: disable=W0614,W0401,W0123
+# pylint: disable=W0614,W0401,W0123,I0011
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 

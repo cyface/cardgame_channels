@@ -7,7 +7,7 @@ For more information on this file, see
 https://channels.readthedocs.io/en/stable/deploying.html
 """
 
-# pylint: disable=C0103
+# pylint: disable=C0103,I0011
 
 import os
 
