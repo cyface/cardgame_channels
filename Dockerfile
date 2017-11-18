@@ -6,6 +6,9 @@ RUN useradd --system app && \
     mkdir /app && \
     chown app:app /app
 
+RUN useradd --system cyface && \
+     usermod -a -G cyface app
+
 COPY requirements.txt /app/
 COPY requirements_prod.txt /app/
 RUN pip install -r /app/requirements_prod.txt
