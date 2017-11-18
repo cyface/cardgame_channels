@@ -6,7 +6,7 @@ RUN useradd --system app && \
     mkdir /app && \
     chown app:app /app
 
-RUN useradd --system cyface && \
+RUN useradd --system -u 1001 cyface && \
      usermod -a -G cyface app
 
 COPY requirements.txt /app/
