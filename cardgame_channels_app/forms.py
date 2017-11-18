@@ -53,7 +53,7 @@ class GameCodeForm(Form):
         except ObjectDoesNotExist:
             self.add_error('game_code', 'Unfortunately, that game code does not exist.')
 
-        return self.cleaned_data['game_code']
+        return game_code
 
 
 class GameCodeCardForm(Form):

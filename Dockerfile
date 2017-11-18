@@ -7,7 +7,8 @@ RUN useradd --system app && \
     chown app:app /app
 
 COPY requirements.txt /app/
-RUN pip install -r /app/requirements.txt
+COPY requirements_prod.txt /app/
+RUN pip install -r /app/requirements_prod.txt
 
 VOLUME ["/app"]
 WORKDIR /app

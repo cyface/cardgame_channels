@@ -2,14 +2,14 @@ version: "3"
 services:
   interfaceserver:
     build: .
-    command: daphne -b 0.0.0.0 -p 8000 cardgame_channels.asgi:channel_layer
+    command: daphne -b 0.0.0.0 -p 8000 cardgame_channels.asgi_docker_compose:channel_layer
     depends_on:
       - database
       - redis
     environment:
       DJANGO_SETTINGS_MODULE: 'cardgame_channels.settings_docker_compose'
-#    ports:
-#      - 8000:8000
+    ports:
+      - 8000:8000
     user: app
     working_dir: /app
     volumes:
