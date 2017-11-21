@@ -78,22 +78,22 @@ LOGGING = {
     },
     'loggers': {
         "root": {
-            "handlers": ["console"],
+            "handlers": ["console", 'debug_log', 'error_log'],
             'propagate': True,
             "level": "DEBUG",
         },
         'django': {
-            'handlers': ['console'],
+            'handlers': ['console', 'debug_log', 'error_log'],
             'propagate': True,
             'level': 'DEBUG',
         },
         'django.request': {
-            'handlers': ['mail_admins'],
+            'handlers': ['mail_admins', 'debug_log', 'error_log'],
             'level': 'DEBUG',
             'propagate': False,
         },
         'django.template': {
-            'handlers': ['console'],
+            'handlers': ['console', 'debug_log', 'error_log'],
             'level': 'INFO',
             'propagate': True,
         },
