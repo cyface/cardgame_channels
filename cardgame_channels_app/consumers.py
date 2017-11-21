@@ -3,24 +3,38 @@ import logging
 from channels import Group
 from channels.generic.websockets import WebsocketDemultiplexer, JsonWebsocketConsumer
 
-from cardgame_channels_app.forms import JoinGameForm, GameCodeForm, GameCodeCardForm
+from cardgame_channels_app.forms import JoinGameForm, GameCodeForm, GameCodeCardForm, BootPlayerForm
 from cardgame_channels_app.game_logic import *
 
 LOGGER = logging.getLogger("cardgame_channels_app")
 
 
+class BootPlayerConsumer(JsonWebsocketConsumer):
+    """Takes a game_code and player_pk and removes that player from the game"""
+
+    def receive(self, content, **kwargs):
+        multiplexer = kwargs.get('multiplexer')
+        boot_player_form = BootPlayerForm({'game_code': content.get('game_code'), 'player_pk': content.get('player_pk')})
+        if boot_player_form.is_valid():
+            try:
+                player = Player.objects.get(pk=boot_player_form.cleaned_data.get('player_pk'))
+                multiplexer.send({'action': 'boot_player', 'data': {'game_code': boot_player_form.cleaned_data.get('game_code'), 'player_name': player.name, 'valid': True}})
+                player.delete()
+            except ObjectDoesNotExist:
+                multiplexer.send({'action': 'boot_player', 'data': {'game_code': boot_player_form.cleaned_data.get('game_code'), 'error': 'boot failed', 'errors': boot_player_form.errors, 'valid': False}})
+
+
 class CreateGameConsumer(JsonWebsocketConsumer):
-    channel_session = True
+    """Creates a game and returns it's game_code"""
 
     def receive(self, content, **kwargs):
         multiplexer = kwargs.get('multiplexer')
         game_code = create_game_code()
-        self.message.channel_session['game_code'] = game_code
         multiplexer.send({'action': 'create_game', 'data': {'game_code': game_code}})
 
 
 class JoinGameConsumer(JsonWebsocketConsumer):
-    channel_session = True
+    """Takes a game_code and a player name and adds that player to the game, and sends them the game data"""
 
     def receive(self, content, **kwargs):
         multiplexer = kwargs.get('multiplexer')
@@ -32,16 +46,14 @@ class JoinGameConsumer(JsonWebsocketConsumer):
             Group(game_code, channel_layer=multiplexer.reply_channel.channel_layer).add(multiplexer.reply_channel)  # Add joiner to group for this came code, since auto-add only happens on connect
             Group('player_{}'.format(player.pk), channel_layer=multiplexer.reply_channel.channel_layer).add(multiplexer.reply_channel)  # Add joiner to group for this player name, since auto-add only happens on connect
 
-            multiplexer.send(
-                {'action': 'join_game', 'data': {'game_code': game_code, 'player': get_player_values(player.pk), 'player_cards': get_cards_in_hand_values_list(player.pk), 'green_card': get_matching_card_values(game_code), 'submitted_cards': get_submitted_cards_values_list(game_code), 'all_players_submitted': get_all_players_submitted(game_code), 'judge': get_judge_player_values(game_code)}})
+            multiplexer.send({'action': 'join_game', 'data': {'game_code': game_code, 'player': get_player_values(player.pk), 'player_cards': get_cards_in_hand_values_list(player.pk), 'green_card': get_matching_card_values(game_code), 'submitted_cards': get_submitted_cards_values_list(game_code), 'all_players_submitted': get_all_players_submitted(game_code), 'judge': get_judge_player_values(game_code)}})
             multiplexer.group_send(game_code, 'player_joined_game', {'data': {'game_code': game_code, 'player': get_player_values(player.pk), 'players': get_game_player_values_list(player.game.code)}})  # notify everyone in the game a player has joined
         else:
-            multiplexer.send(
-                {'action': 'join_game', 'data': {'error': 'join failed', 'errors': join_form.errors}})
+            multiplexer.send({'action': 'join_game', 'data': {'error': 'join failed', 'errors': join_form.errors}})
 
 
 class PickCardConsumer(JsonWebsocketConsumer):
-    channel_session = True
+    """Takes a game_code and a card_pk and marks that card as picked"""
 
     def receive(self, content, **kwargs):
         multiplexer = kwargs.get('multiplexer')
@@ -65,7 +77,7 @@ class PickCardConsumer(JsonWebsocketConsumer):
 
 
 class SubmitCardConsumer(JsonWebsocketConsumer):
-    channel_session = True
+    """Takes a game code and card_pk and marks that card as submitted"""
 
     def receive(self, content, **kwargs):
         multiplexer = kwargs.get('multiplexer')
@@ -80,7 +92,7 @@ class SubmitCardConsumer(JsonWebsocketConsumer):
 
 
 class ValidateGameCodeConsumer(JsonWebsocketConsumer):
-    channel_session = True
+    """Takes a game_code and validates that it exists"""
 
     def receive(self, content, **kwargs):
         multiplexer = kwargs.get('multiplexer')
@@ -92,7 +104,7 @@ class ValidateGameCodeConsumer(JsonWebsocketConsumer):
 
 
 class ValidatePlayerNameConsumer(JsonWebsocketConsumer):
-    channel_session = True
+    """Takes a game_code and player name and validates that it is acceptable and unique to that game"""
 
     def receive(self, content, **kwargs):
         multiplexer = kwargs.get('multiplexer')
@@ -105,7 +117,9 @@ class ValidatePlayerNameConsumer(JsonWebsocketConsumer):
 
 class GameDemultiplexer(WebsocketDemultiplexer):
     # Looks at the 'stream' value to route the incoming request to the correct consumer
+
     consumers = {
+        "boot_player": BootPlayerConsumer,
         "create_game": CreateGameConsumer,
         "join_game": JoinGameConsumer,
         "pick_card": PickCardConsumer,

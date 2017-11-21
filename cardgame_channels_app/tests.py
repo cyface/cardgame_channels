@@ -25,7 +25,7 @@ class GameModelTests(ChannelTestCase):
         self.assertIsNotNone(str(cgps_in_hand[0]))
 
         # Pull by Card
-        cards_in_hand = Card.objects.filter(cardgameplayer__player=player, cardgameplayer__game=player.game, cardgameplayer__status=CardGamePlayer.HAND).values('pk', 'name', 'text')
+        cards_in_hand = Card.objects.filter(cardgameplayer__player=player, cardgameplayer__game=player.game, cardgameplayer__status=CardGamePlayer.HAND)
         self.assertEqual(5, len(cards_in_hand))
         self.assertIsNotNone(str(cards_in_hand[0]))
 
@@ -49,8 +49,6 @@ class GameConsumerTests(ChannelTestCase):
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         self.assertEqual(receive_reply.get('stream'), 'create_game')
         self.assertEqual(4, len(receive_reply.get('payload').get('data').get('game_code')))
-        client.session['game_code'] = receive_reply.get('payload').get('data').get('game_code')
-        self.assertEqual(4, len(client.session.get('game_code')))
 
         disconnect_consumer = client.send_and_consume('websocket.disconnect', path='/game/')
         disconnect_consumer.close()
@@ -206,7 +204,6 @@ class GameConsumerTests(ChannelTestCase):
         disconnect_consumer = client.send_and_consume('websocket.disconnect', path='/game/')
         disconnect_consumer.close()
 
-
     def test_submit_card(self):
         client = WSClient()
 
@@ -218,6 +215,34 @@ class GameConsumerTests(ChannelTestCase):
         client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'submit_card', 'payload': {'game_code': '1234'}})  # Text arg is JSON as if it came from browser
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         self.assertEqual(receive_reply.get('stream'), 'submit_card')
+        self.assertFalse(receive_reply.get('payload').get('data').get('valid'))
+
+        disconnect_consumer = client.send_and_consume('websocket.disconnect', path='/game/')
+        disconnect_consumer.close()
+
+    def test_boot_player(self):
+        client = WSClient()
+
+        client.send_and_consume('websocket.connect', path='/game/')  # Connect is forwarded to ALL multiplexed consumers under this demultiplexer
+        while client.receive():
+            pass  # Grab connection success message from each consumer
+
+        bob_player = add_player_to_game(self.game1.code, 'bob')
+
+        # Valid Test
+        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'boot_player', 'payload': {'game_code': self.game1.code, 'player_pk': bob_player.pk}})  # Text arg is JSON as if it came from browser
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        self.assertEqual(receive_reply.get('stream'), 'boot_player')
+        self.assertEqual(self.game1.code, receive_reply.get('payload').get('data').get('game_code'))
+        self.assertEqual('bob', receive_reply.get('payload').get('data').get('player_name'))
+        self.assertTrue(receive_reply.get('payload').get('data').get('valid'))
+        self.assertFalse(Player.objects.filter(pk=bob_player.pk))
+
+        # Invalid Test
+        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'boot_player', 'payload': {'game_code': self.game1.code, 'player_pk': 99}})  # Text arg is JSON as if it came from browser
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        self.assertEqual(receive_reply.get('stream'), 'boot_player')
+        self.assertEqual(self.game1.code, receive_reply.get('payload').get('data').get('game_code'))
         self.assertFalse(receive_reply.get('payload').get('data').get('valid'))
 
         disconnect_consumer = client.send_and_consume('websocket.disconnect', path='/game/')
@@ -235,7 +260,6 @@ class GameConsumerTests(ChannelTestCase):
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
         self.assertEqual('create_game', receive_reply.get('stream'))
         game_code = receive_reply.get('payload').get('data').get('game_code')
-        client.session['game_code'] = game_code
 
         # Join the game
         client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': game_code, 'player_name': 'tim'}})  # Text arg is JSON as if it came from browser
@@ -255,8 +279,6 @@ class GameConsumerTests(ChannelTestCase):
         self.assertEqual(1, len(data.get('players')))
         self.assertEqual('judge', data.get('players')[0].get('status'))
         self.assertEqual('tim', data.get('player').get('name'))
-        client.session['player_pk'] = data.get('player').get('pk')
-        client.session['player_name'] = data.get('player').get('name')
 
         # Set up player 2
         client2 = WSClient()
@@ -286,8 +308,6 @@ class GameConsumerTests(ChannelTestCase):
         self.assertEqual('tim', data.get('players')[1].get('name'))
         self.assertEqual('waiting', data.get('players')[0].get('status'))
         self.assertEqual('judge', data.get('players')[1].get('status'))
-        client2.session['player_pk'] = data.get('player').get('pk')
-        client2.session['player_name'] = data.get('player').get('name')
 
         # Player2 Join Event - Seen by Player 1
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel

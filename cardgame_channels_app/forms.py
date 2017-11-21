@@ -67,21 +67,11 @@ class GameCodeCardForm(Form):
 
 class BootPlayerForm(Form):
     """Form to boot disconnected players"""
-    game_pk = None
-    player_id = IntegerField(label="Player PK", required=True, widget=HiddenInput)
-    player = None
+    game_code = CharField(label="Game Code", max_length="4", required=True)
+    player_pk = IntegerField(label="Player PK", required=True, widget=HiddenInput)
 
-    def __init__(self, request, *args, **kwargs):
-        super(BootPlayerForm, self).__init__(*args, **kwargs)
-        self.game_pk = request.session.get('game_pk', None)
+    def clean_game_code(self):
+        return escape(strip_tags(self.cleaned_data['game_code']))
 
-    def clean_player_id(self):
-        """Checks to see if the player exists upon form submit"""
-        player_id = self.cleaned_data['player_id']
-
-        try:
-            self.player = Player.objects.get(pk=player_id, game__id=self.game_pk)
-        except ObjectDoesNotExist:
-            raise ValidationError("Unfortunately, that player does not exist.")
-
-        return player_id
+    def clean_player_pk(self):
+        return escape(strip_tags(self.cleaned_data['player_pk']))
