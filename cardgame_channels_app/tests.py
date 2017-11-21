@@ -16,15 +16,21 @@ class GameModelTests(ChannelTestCase):
 
     def test_cards(self):
         player = add_player_to_game(self.game1.code, 'tim')
+        self.assertIsNotNone(str(player))
         self.assertEqual(6, len(player.cardgameplayer_set.all()))
-        cards_in_hand = CardGamePlayer.objects.filter(player=player, game=player.game, status=CardGamePlayer.HAND)
-        self.assertEqual(5, len(cards_in_hand))
-        # for card in cards_in_hand:
-        #     LOGGER.debug(card)
+
+        # Pull by CGP
+        cgps_in_hand = CardGamePlayer.objects.filter(player=player, game=player.game, status=CardGamePlayer.HAND)
+        self.assertEqual(5, len(cgps_in_hand))
+        self.assertIsNotNone(str(cgps_in_hand[0]))
+
+        # Pull by Card
         cards_in_hand = Card.objects.filter(cardgameplayer__player=player, cardgameplayer__game=player.game, cardgameplayer__status=CardGamePlayer.HAND).values('pk', 'name', 'text')
-        # for card in cards_in_hand:
-        #     LOGGER.debug(card)
         self.assertEqual(5, len(cards_in_hand))
+        self.assertIsNotNone(str(cards_in_hand[0]))
+
+    def test_game(self):
+        self.assertIsNotNone(str(self.game1))
 
 
 class GameConsumerTests(ChannelTestCase):
@@ -36,11 +42,8 @@ class GameConsumerTests(ChannelTestCase):
     def test_create_game(self):
         client = WSClient()
 
-        try:
-            while client.receive():
-                pass  # Grab connection success message from each consumer
-        except AssertionError:  # WS Client automatically checks that connection is accepted
-            self.fail("Connection Rejected!")
+        while client.receive():
+            pass  # Grab connection success message from each consumer
 
         client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'create_game', 'payload': {}})  # Text arg is JSON as if it came from browser
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
@@ -55,12 +58,9 @@ class GameConsumerTests(ChannelTestCase):
     def test_join_game_errors(self):
         client = WSClient()
 
-        try:
-            client.send_and_consume('websocket.connect', path='/game/')  # Connect is forwarded to ALL multiplexed consumers under this demultiplexer
-            while client.receive():
-                pass  # Grab connection success message from each consumer
-        except AssertionError:  # WS Client automatically checks that connection is accepted
-            self.fail("Connection Rejected!")
+        client.send_and_consume('websocket.connect', path='/game/')  # Connect is forwarded to ALL multiplexed consumers under this demultiplexer
+        while client.receive():
+            pass  # Grab connection success message from each consumer
 
         # Test Player Name Too Long
         client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': 'abcd', 'player_name': '1234567891011121314151617181920'}})  # Text arg is JSON as if it came from browser
@@ -114,12 +114,9 @@ class GameConsumerTests(ChannelTestCase):
     def test_join_game(self):
         client = WSClient()
 
-        try:
-            client.send_and_consume('websocket.connect', path='/game/')  # Connect is forwarded to ALL multiplexed consumers under this demultiplexer
-            while client.receive():
-                pass  # Grab connection success message from each consumer
-        except AssertionError:  # WS Client automatically checks that connection is accepted
-            self.fail("Connection Rejected!")
+        client.send_and_consume('websocket.connect', path='/game/')  # Connect is forwarded to ALL multiplexed consumers under this demultiplexer
+        while client.receive():
+            pass  # Grab connection success message from each consumer
 
         client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': 'abcd', 'player_name': 'tim'}})  # Text arg is JSON as if it came from browser
 
@@ -147,11 +144,9 @@ class GameConsumerTests(ChannelTestCase):
     def test_validate_game_code(self):
         client = WSClient()
 
-        try:
-            while client.receive():
-                pass  # Grab connection success message from each consumer
-        except AssertionError:  # WS Client automatically checks that connection is accepted
-            self.fail("Connection Rejected!")
+        client.send_and_consume('websocket.connect', path='/game/')  # Connect is forwarded to ALL multiplexed consumers under this demultiplexer
+        while client.receive():
+            pass  # Grab connection success message from each consumer
 
         # Valid Test
         client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'validate_game_code', 'payload': {'game_code': 'abcd'}})  # Text arg is JSON as if it came from browser
@@ -173,11 +168,9 @@ class GameConsumerTests(ChannelTestCase):
     def test_validate_player_name(self):
         client = WSClient()
 
-        try:
-            while client.receive():
-                pass  # Grab connection success message from each consumer
-        except AssertionError:  # WS Client automatically checks that connection is accepted
-            self.fail("Connection Rejected!")
+        client.send_and_consume('websocket.connect', path='/game/')  # Connect is forwarded to ALL multiplexed consumers under this demultiplexer
+        while client.receive():
+            pass  # Grab connection success message from each consumer
 
         # Available Test
         client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'validate_player_name', 'payload': {'game_code': 'abcd', 'player_name': 'tim'}})  # Text arg is JSON as if it came from browser
@@ -197,15 +190,45 @@ class GameConsumerTests(ChannelTestCase):
         disconnect_consumer = client.send_and_consume('websocket.disconnect', path='/game/')
         disconnect_consumer.close()
 
+    def test_pick_card(self):
+        client = WSClient()
+
+        client.send_and_consume('websocket.connect', path='/game/')  # Connect is forwarded to ALL multiplexed consumers under this demultiplexer
+        while client.receive():
+            pass  # Grab connection success message from each consumer
+
+        # Invalid Test
+        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'pick_card', 'payload': {'game_code': '1234'}})  # Text arg is JSON as if it came from browser
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        self.assertEqual(receive_reply.get('stream'), 'pick_card')
+        self.assertFalse(receive_reply.get('payload').get('data').get('valid'))
+
+        disconnect_consumer = client.send_and_consume('websocket.disconnect', path='/game/')
+        disconnect_consumer.close()
+
+
+    def test_submit_card(self):
+        client = WSClient()
+
+        client.send_and_consume('websocket.connect', path='/game/')  # Connect is forwarded to ALL multiplexed consumers under this demultiplexer
+        while client.receive():
+            pass  # Grab connection success message from each consumer
+
+        # Invalid Test
+        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'submit_card', 'payload': {'game_code': '1234'}})  # Text arg is JSON as if it came from browser
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        self.assertEqual(receive_reply.get('stream'), 'submit_card')
+        self.assertFalse(receive_reply.get('payload').get('data').get('valid'))
+
+        disconnect_consumer = client.send_and_consume('websocket.disconnect', path='/game/')
+        disconnect_consumer.close()
+
     def test_whole_game(self):
         client = WSClient()
 
-        try:
-            client.send_and_consume('websocket.connect', path='/game/')  # Connect is forwarded to ALL multiplexed consumers under this demultiplexer
-            while client.receive():
-                pass  # Grab connection success message from each consumer
-        except AssertionError:  # WS Client automatically checks that connection is accepted
-            self.fail("Connection Rejected!")
+        client.send_and_consume('websocket.connect', path='/game/')  # Connect is forwarded to ALL multiplexed consumers under this demultiplexer
+        while client.receive():
+            pass  # Grab connection success message from each consumer
 
         # Create a game
         client.send_and_consume('websocket.receive', path='/game/create/', text={'stream': 'create_game', 'payload': {}})  # Text arg is JSON as if it came from browser
@@ -235,13 +258,11 @@ class GameConsumerTests(ChannelTestCase):
         client.session['player_pk'] = data.get('player').get('pk')
         client.session['player_name'] = data.get('player').get('name')
 
+        # Set up player 2
         client2 = WSClient()
-        try:
-            client2.send_and_consume('websocket.connect', path='/game/')  # Connect is forwarded to ALL multiplexed consumers under this demultiplexer
-            while client2.receive():
-                pass  # Grab connection success message from each consumer
-        except AssertionError:  # WS Client automatically checks that connection is accepted
-            self.fail("Connection Rejected!")
+        client2.send_and_consume('websocket.connect', path='/game/')  # Connect is forwarded to ALL multiplexed consumers under this demultiplexer
+        while client2.receive():
+            pass  # Grab connection success message from each consumer
 
         # Player 2: join the game
         client2.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': game_code, 'player_name': 'bob'}})  # Text arg is JSON as if it came from browser

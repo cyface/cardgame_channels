@@ -28,8 +28,7 @@ def create_game_code():
         try:
             Game.objects.create(code=game_code)
             not_a_unique_code = False
-
-        except IntegrityError:
+        except IntegrityError:  # pragma: nocover
             not_a_unique_code = True
     return game_code
 
@@ -53,7 +52,7 @@ def draw_card(game, player=None, color=Card.GREEN, count=1):
                     player=player,
                     status=status
                 )
-            except IntegrityError:
+            except IntegrityError:  # pragma: nocover
                 draw_again = True  # Try Again
 
 
@@ -62,7 +61,7 @@ def get_all_players_submitted(game_code):
     try:
         waiting_players = Player.objects.filter(game__code=game_code, status=Player.WAITING)
         return False if waiting_players else True
-    except ObjectDoesNotExist:
+    except ObjectDoesNotExist:  # pragma: nocover
         return True
 
 

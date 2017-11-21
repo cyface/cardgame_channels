@@ -6,7 +6,10 @@ omit =
 	*/settings*
 	*/tests*
 	*/manage.py
+	*/asgi*
 	*/wsgi*
+	*/apps.py
+	/__init__.py
 
 [report]
 # Regexes for lines to exclude from consideration
