@@ -15,6 +15,8 @@ except ImportError:
 
 DEBUG = False
 
+ADMINS = [('Tim', 'tim@cyface.com'),]
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
@@ -36,3 +38,70 @@ CHANNEL_LAYERS = {
 }
 
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'interfaceserver', ]
+
+# Logging
+LOGGING = {
+    'version': 1,
+    "disable_existing_loggers": False,
+    'formatters': {
+        'verbose': {
+            'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
+        },
+        'simple': {
+            'format': '%(levelname)s %(message)s'
+        },
+    },
+    'handlers': {
+        'null': {
+            'level': 'DEBUG',
+            'class': 'logging.NullHandler',
+        },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple'
+        },
+        'mail_admins': {
+            'level': 'ERROR',
+            'class': 'django.utils.log.AdminEmailHandler'
+        },
+        'debug_log': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR,'logs', 'debug.log')
+        },
+        'error_log': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR,'logs', 'error.log')
+        },
+    },
+    'loggers': {
+        "root": {
+            "handlers": ["console"],
+            'propagate': True,
+            "level": "DEBUG",
+        },
+        'django': {
+            'handlers': ['console'],
+            'propagate': True,
+            'level': 'DEBUG',
+        },
+        'django.request': {
+            'handlers': ['mail_admins'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'django.template': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'cardgame_channels_app': {
+            'handlers': ['console', 'error_log', 'debug_log'],
+            'propagate': True,
+            'level': 'DEBUG',
+        },
+    }
+}
+
