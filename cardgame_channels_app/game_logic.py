@@ -19,6 +19,20 @@ def add_player_to_game(game_code, player_name):
     return player
 
 
+def boot_player_from_game(game_code, player_pk):
+    """Returns the player_name of the booted player if they aren't the judge, False if they don't exist or are the judge"""
+    try:
+        player = Player.objects.get(pk=player_pk)
+        player_name = player.name
+        if player.status != Player.JUDGE:  # Only delete if there is still a judge left
+            player.delete()
+            return player_name
+        else:
+            return False
+    except ObjectDoesNotExist:
+        return False
+
+
 def create_game_code():
     """Create a Unique Game Code"""
     game_code = ""

@@ -227,16 +227,29 @@ class GameConsumerTests(ChannelTestCase):
         while client.receive():
             pass  # Grab connection success message from each consumer
 
-        bob_player = add_player_to_game(self.game1.code, 'bob')
+        # Add extra player for valid test
+        add_player_to_game(self.game1.code, 'tim')
+
+        # Join Game
+        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'join_game', 'payload': {'game_code': self.game1.code, 'player_name': 'bob'}})  # Text arg is JSON as if it came from browser
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        LOGGER.debug(receive_reply)
+        bob_pk = receive_reply.get('payload').get('data').get('player').get('pk')
+        self.assertEqual('join_game', receive_reply.get('stream'))
+
+        # Join Game Broadcast
+        receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        LOGGER.debug(receive_reply)
 
         # Valid Test
-        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'boot_player', 'payload': {'game_code': self.game1.code, 'player_pk': bob_player.pk}})  # Text arg is JSON as if it came from browser
+        client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'boot_player', 'payload': {'game_code': self.game1.code, 'player_pk': bob_pk}})  # Text arg is JSON as if it came from browser
         receive_reply = client.receive()  # receive() grabs the content of the next message off of the client's reply_channel
+        LOGGER.debug(receive_reply)
         self.assertEqual(receive_reply.get('stream'), 'boot_player')
         self.assertEqual(self.game1.code, receive_reply.get('payload').get('data').get('game_code'))
         self.assertEqual('bob', receive_reply.get('payload').get('data').get('player_name'))
         self.assertTrue(receive_reply.get('payload').get('data').get('valid'))
-        self.assertFalse(Player.objects.filter(pk=bob_player.pk))
+        self.assertFalse(Player.objects.filter(pk=bob_pk))
 
         # Invalid Test
         client.send_and_consume('websocket.receive', path='/game/', text={'stream': 'boot_player', 'payload': {'game_code': self.game1.code, 'player_pk': 99}})  # Text arg is JSON as if it came from browser

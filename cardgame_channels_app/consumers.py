@@ -14,16 +14,18 @@ class BootPlayerConsumer(JsonWebsocketConsumer):
 
     def receive(self, content, **kwargs):
         multiplexer = kwargs.get('multiplexer')
-        boot_player_form = BootPlayerForm({'game_code': content.get('game_code'), 'player_pk': content.get('player_pk')})
+        boot_player_form = BootPlayerForm(content)
         if boot_player_form.is_valid():
             game_code = boot_player_form.cleaned_data.get('game_code')
-            try:
-                player = Player.objects.get(pk=boot_player_form.cleaned_data.get('player_pk'))
-                player_name = player.name
-                player.delete()
-                multiplexer.group_send(game_code, 'boot_player', {'data': {'game_code': game_code, 'player_name': player_name, 'players': get_game_player_values_list(game_code), 'valid': True}})
-            except ObjectDoesNotExist:
-                multiplexer.group_send(game_code, 'boot_player', {'data': {'game_code': game_code, 'players': get_game_player_values_list(game_code), 'error': 'boot failed', 'errors': boot_player_form.errors, 'valid': False}})
+            player_name = boot_player_from_game(game_code, boot_player_form.cleaned_data.get('player_pk'))
+            if player_name:
+                valid = True
+            else:
+                player_name = 'Unknown'
+                valid = False
+            multiplexer.group_send(game_code, 'boot_player', {'data': {'game_code': game_code, 'player_name': player_name, 'players': get_game_player_values_list(game_code), 'submitted_cards': get_submitted_cards_values_list(game_code), 'all_players_submitted': get_all_players_submitted(game_code), 'judge': get_judge_player_values(game_code), 'valid': valid}})
+        else:
+            multiplexer.send({'action': 'boot_player', 'data': {'error': 'join failed', 'errors': boot_player_form.errors}})
 
 
 class CreateGameConsumer(JsonWebsocketConsumer):
@@ -40,7 +42,7 @@ class JoinGameConsumer(JsonWebsocketConsumer):
 
     def receive(self, content, **kwargs):
         multiplexer = kwargs.get('multiplexer')
-        join_form = JoinGameForm({'game_code': content.get('game_code'), 'player_name': content.get('player_name')})
+        join_form = JoinGameForm(content)
         if join_form.is_valid():
             game_code = join_form.cleaned_data.get('game_code')
             player = add_player_to_game(game_code, join_form.cleaned_data.get('player_name'))
