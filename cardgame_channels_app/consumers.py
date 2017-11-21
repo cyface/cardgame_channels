@@ -18,7 +18,7 @@ class BootPlayerConsumer(JsonWebsocketConsumer):
         if boot_player_form.is_valid():
             try:
                 player = Player.objects.get(pk=boot_player_form.cleaned_data.get('player_pk'))
-                multiplexer.send({'action': 'boot_player', 'data': {'game_code': boot_player_form.cleaned_data.get('game_code'), 'player_name': player.name, 'valid': True}})
+                multiplexer.send({'action': 'boot_player', 'data': {'game_code': boot_player_form.cleaned_data.get('game_code'), 'player_name': player.name, 'players': get_game_player_values_list(player.game.code), 'valid': True}})
                 player.delete()
             except ObjectDoesNotExist:
                 multiplexer.send({'action': 'boot_player', 'data': {'game_code': boot_player_form.cleaned_data.get('game_code'), 'error': 'boot failed', 'errors': boot_player_form.errors, 'valid': False}})
