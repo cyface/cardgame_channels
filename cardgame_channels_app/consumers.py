@@ -16,12 +16,14 @@ class BootPlayerConsumer(JsonWebsocketConsumer):
         multiplexer = kwargs.get('multiplexer')
         boot_player_form = BootPlayerForm({'game_code': content.get('game_code'), 'player_pk': content.get('player_pk')})
         if boot_player_form.is_valid():
+            game_code = boot_player_form.cleaned_data.get('game_code')
             try:
                 player = Player.objects.get(pk=boot_player_form.cleaned_data.get('player_pk'))
-                multiplexer.send({'action': 'boot_player', 'data': {'game_code': boot_player_form.cleaned_data.get('game_code'), 'player_name': player.name, 'players': get_game_player_values_list(player.game.code), 'valid': True}})
+                player_name = player.name
                 player.delete()
+                multiplexer.group_send(game_code, 'boot_player', {'data': {'game_code': game_code, 'player_name': player_name, 'players': get_game_player_values_list(game_code), 'valid': True}})
             except ObjectDoesNotExist:
-                multiplexer.send({'action': 'boot_player', 'data': {'game_code': boot_player_form.cleaned_data.get('game_code'), 'players': get_game_player_values_list(boot_player_form.cleaned_data.get('game_code')), 'error': 'boot failed', 'errors': boot_player_form.errors, 'valid': False}})
+                multiplexer.group_send(game_code, 'boot_player', {'data': {'game_code': game_code, 'players': get_game_player_values_list(game_code), 'error': 'boot failed', 'errors': boot_player_form.errors, 'valid': False}})
 
 
 class CreateGameConsumer(JsonWebsocketConsumer):
