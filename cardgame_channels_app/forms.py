@@ -33,7 +33,7 @@ class JoinGameForm(Form):
 
             # Check if player_name is already taken
             try:
-                Player.objects.get(game__code=game_code, name=player_name)
+                Player.objects.get(game__code=game_code, name__iexact=player_name)
 
                 self.add_error('player_name', 'Unfortunately, that player name is already taken.')
             except ObjectDoesNotExist:  # Must be unique if did not exist
