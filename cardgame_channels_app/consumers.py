@@ -89,8 +89,7 @@ class SubmitCardConsumer(JsonWebsocketConsumer):
         if submit_card_form.is_valid():
             cgp = submit_card(submit_card_form.cleaned_data.get('game_code'), submit_card_form.cleaned_data.get('card_pk'))
             multiplexer.group_send('player_{}'.format(cgp.player.pk), 'submit_card', {'data': {'game_code': cgp.game.code, 'cards': get_cards_in_hand_values_list(cgp.player.pk)}})
-            players = list(cgp.game.players.values('pk', 'name', 'status', 'score'))
-            multiplexer.group_send(cgp.game.code, 'card_was_submitted', {'data': {'game_code': cgp.game.code, 'submitting_player': get_player_values(cgp.player.pk), 'players': players, 'card': get_card_values(cgp.game.code, cgp.card), 'submitted_cards': get_submitted_cards_values_list(cgp.game.code), 'all_players_submitted': get_all_players_submitted(cgp.game.code)}})  # notify everyone card was submitted
+            multiplexer.group_send(cgp.game.code, 'card_was_submitted', {'data': {'game_code': cgp.game.code, 'submitting_player': get_player_values(cgp.player.pk), 'players': get_game_player_values_list(cgp.game.code), 'card': get_card_values(cgp.game.code, cgp.card), 'submitted_cards': get_submitted_cards_values_list(cgp.game.code), 'all_players_submitted': get_all_players_submitted(cgp.game.code)}})  # notify everyone card was submitted
         else:
             multiplexer.send({'action': 'submit_card', 'data': {'error': 'submit card failed', 'errors': submit_card_form.errors}})
 
