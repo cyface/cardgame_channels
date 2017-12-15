@@ -83,3 +83,5 @@ reports/*
 #Docker Compose Overrides
 docker-compose.override.yml
 
+#Local Settings
+**/settings_local.py

@@ -15,7 +15,7 @@ except ImportError:
 
 DEBUG = False
 
-ADMINS = [('Tim', 'tim@cyface.com'),]
+ADMINS = [('Tim', 'tim@cyface.com'), ]
 
 DATABASES = {
     'default': {
@@ -68,12 +68,12 @@ LOGGING = {
         'debug_log': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR,'logs', 'debug.log')
+            'filename': os.path.join(BASE_DIR, 'logs', 'debug.log')
         },
         'error_log': {
             'level': 'ERROR',
             'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR,'logs', 'error.log')
+            'filename': os.path.join(BASE_DIR, 'logs', 'error.log')
         },
     },
     'loggers': {

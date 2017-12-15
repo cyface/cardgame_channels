@@ -186,6 +186,6 @@ LOGGING = {
 }
 
 try:
-    from settings_local import *
+    from cardgame_channels.settings_local import *
 except ImportError:
     pass

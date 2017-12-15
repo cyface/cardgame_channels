@@ -8,31 +8,10 @@ Django settings for project.
 
 # This file overrides any settings from the main settings file for a docker compose use.
 
-try:
-    from .settings import *
-except ImportError:
-    pass
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_HOST_PASSWORD = ''
+EMAIL_HOST_USER = 'cyfacecardgame@gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+ACCOUNT_EMAIL_VERIFICATION = 'none'
 
-DEBUG = False
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'postgres',
-        'USER': 'postgres',
-        'HOST': 'database',
-        'PORT': 5432,
-    }
-}
-
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "asgi_redis.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [("redis", 6379)],
-        },
-        "ROUTING": "cardgame_channels_app.routing.channel_routing",
-    },
-}
-
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'interfaceserver', ]
